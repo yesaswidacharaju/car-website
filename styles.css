@@ -442,8 +442,14 @@ img {
    Left-edge HUD in mono: chapter 01/04, speed 000→118, distance 0.0→4.2
    ========================================================================== */
 
+#hero,
 #hero-wrapper {
   height: 600vh;
+}
+
+#dismantle,
+#dismantle-wrapper {
+  height: 350vh;
 }
 
 .hero-overlay-grid {

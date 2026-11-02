@@ -19,8 +19,49 @@
 (function () {
   'use strict';
 
-  // Read configuration from window.NOCTIS_CONFIG
-  const CFG = window.NOCTIS_CONFIG || {};
+  // Read configuration from window.NOCTIS_CONFIG with safe fallbacks
+  const CFG = window.NOCTIS_CONFIG || {
+    hero: {
+      frameCount: 598,
+      wrapperHeightVh: 600,
+      desktopPathPattern: 'assets/frames/hero/frame_%s.webp',
+      mobilePathPattern: 'assets/frames/hero-mobile/frame_%s.webp',
+      speedMaxKmH: 118,
+      distanceMaxKm: 4.2,
+      fadeToBlackStart: 0.95,
+      chapters: [
+        { id: 1, startProgress: 0.00, endProgress: 0.12 },
+        { id: 2, startProgress: 0.22, endProgress: 0.40 },
+        { id: 3, startProgress: 0.50, endProgress: 0.68 },
+        { id: 4, startProgress: 0.80, endProgress: 1.00 }
+      ]
+    },
+    statement: {
+      text: 'Every part was designed to disappear into one line of light.'
+    },
+    dismantle: {
+      frameCount: 200,
+      wrapperHeightVh: 350,
+      desktopPathPattern: 'assets/frames/dismantle/frame_%s.webp',
+      mobilePathPattern: 'assets/frames/dismantle-mobile/frame_%s.webp',
+      callouts: [
+        { id: 'body', startProgress: 0.70 },
+        { id: 'battery', startProgress: 0.78 },
+        { id: 'drive', startProgress: 0.86 },
+        { id: 'light', startProgress: 0.93 }
+      ]
+    },
+    lineup: {
+      defaultOpenIndex: 0
+    },
+    preloader: {
+      initialHeroFrames: 40
+    },
+    cursor: {
+      lerpFactor: 0.18,
+      clickBoostDurationMs: 120
+    }
+  };
 
   // Check prefers-reduced-motion
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -94,7 +135,6 @@
     let cursorX = mouseX;
     let cursorY = mouseY;
     const lerpFactor = CFG.cursor?.lerpFactor || 0.18;
-    let isHovering = false;
 
     window.addEventListener('mousemove', (e) => {
       mouseX = e.clientX;
@@ -114,21 +154,17 @@
       const targets = document.querySelectorAll('.cursor-target, a, button, [role="button"], [role="tab"], .swatch-btn');
       targets.forEach(target => {
         target.addEventListener('mouseenter', () => {
-          isHovering = true;
           cursor.classList.add('state-hover');
           const customText = target.getAttribute('data-cursor') || 'VIEW';
           if (cursorLabel) cursorLabel.textContent = customText;
         });
 
         target.addEventListener('mouseleave', () => {
-          isHovering = false;
           cursor.classList.remove('state-hover');
         });
       });
     }
     updateCursorTargets();
-
-    // Expose for dynamic elements
     window.refreshCursorTargets = updateCursorTargets;
 
     // Cursor RAF loop with lerp
@@ -190,7 +226,6 @@
         const newIsMobile = window.innerWidth < 768;
         if (newIsMobile !== this.isMobile) {
           this.isMobile = newIsMobile;
-          // Purge & reload active frames if screen class changes
           this.images = new Array(this.frameCount);
           this.loadedIndices.clear();
           this.loadedCount = 0;
@@ -205,35 +240,58 @@
     }
 
     async loadFrame(index) {
-      if (this.images[index]) return this.images[index];
+      if (index < 0 || index >= this.frameCount) return null;
+      if (this.images[index] && this.images[index].complete && this.images[index].naturalWidth > 0) {
+        return this.images[index];
+      }
 
       return new Promise((resolve) => {
         const img = new Image();
-        img.src = this.getFramePath(index);
-        
-        const onDone = () => {
-          this.images[index] = img;
-          if (!this.loadedIndices.has(index)) {
-            this.loadedIndices.add(index);
-            this.loadedCount++;
-            if (this.onProgress) {
-              this.onProgress(this.loadedCount, this.frameCount);
+        let settled = false;
+
+        const onFinish = (success) => {
+          if (settled) return;
+          settled = true;
+          if (success && img.naturalWidth > 0) {
+            this.images[index] = img;
+            if (!this.loadedIndices.has(index)) {
+              this.loadedIndices.add(index);
+              this.loadedCount++;
+              if (this.onProgress) {
+                this.onProgress(this.loadedCount, this.frameCount);
+              }
             }
           }
-          resolve(img);
+          resolve(this.images[index] || null);
         };
 
-        if (img.decode) {
-          img.decode().then(onDone).catch(onDone);
-        } else {
-          img.onload = onDone;
-          img.onerror = onDone;
-        }
+        // Safety timeout per frame: never block the queue if an asset stalls
+        const timeoutId = setTimeout(() => {
+          onFinish(img.complete && img.naturalWidth > 0);
+        }, 2500);
+
+        img.onload = () => {
+          clearTimeout(timeoutId);
+          if (img.decode) {
+            img.decode().then(() => onFinish(true)).catch(() => onFinish(true));
+          } else {
+            onFinish(true);
+          }
+        };
+
+        img.onerror = () => {
+          clearTimeout(timeoutId);
+          onFinish(false);
+        };
+
+        img.src = this.getFramePath(index);
       });
     }
 
     getNearestLoadedFrame(targetIndex) {
-      if (this.images[targetIndex]) return this.images[targetIndex];
+      if (this.images[targetIndex] && this.images[targetIndex].naturalWidth > 0) {
+        return this.images[targetIndex];
+      }
       if (this.loadedIndices.size === 0) return null;
 
       let nearestIdx = -1;
@@ -241,7 +299,7 @@
 
       for (const idx of this.loadedIndices) {
         const dist = Math.abs(idx - targetIndex);
-        if (dist < minDistance) {
+        if (dist < minDistance && this.images[idx] && this.images[idx].naturalWidth > 0) {
           minDistance = dist;
           nearestIdx = idx;
         }
@@ -258,8 +316,8 @@
     if (!canvas || !ctx || !img) return;
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const displayWidth = canvas.clientWidth;
-    const displayHeight = canvas.clientHeight;
+    const displayWidth = canvas.clientWidth || window.innerWidth;
+    const displayHeight = canvas.clientHeight || window.innerHeight;
 
     const targetWidth = Math.round(displayWidth * dpr);
     const targetHeight = Math.round(displayHeight * dpr);
@@ -274,7 +332,7 @@
     const iw = img.naturalWidth || img.width;
     const ih = img.naturalHeight || img.height;
 
-    if (!iw || !ih) return;
+    if (!iw || !ih || cw === 0 || ch === 0) return;
 
     // Background fill
     ctx.fillStyle = '#07080A';
@@ -309,7 +367,7 @@
   // Canvas fades to black over last 5%.
   // =========================================================================
   function initHeroScrollytelling(heroLoader) {
-    const wrapper = document.getElementById('hero');
+    const wrapper = document.getElementById('hero') || document.getElementById('hero-wrapper');
     const canvas = document.getElementById('hero-canvas');
     const blackout = document.getElementById('hero-blackout');
     const progressLine = document.getElementById('hero-progress-line');
@@ -318,6 +376,9 @@
     const hudDistance = document.getElementById('hud-distance');
 
     if (!wrapper || !canvas) return;
+
+    // Force explicit section height from config
+    wrapper.style.height = `${CFG.hero.wrapperHeightVh || 600}vh`;
 
     const ctx = canvas.getContext('2d', { alpha: false });
     const frameCount = CFG.hero.frameCount;
@@ -386,6 +447,11 @@
       }
     }
 
+    // Initial frame 0 render immediately
+    heroLoader.loadFrame(0).then(img => {
+      if (img) renderFrameToCanvas(canvas, ctx, img);
+    });
+
     function heroRafLoop() {
       heroProgress = calculateProgress();
       targetFrame = Math.round(heroProgress * (frameCount - 1));
@@ -407,6 +473,12 @@
     }
 
     requestAnimationFrame(heroRafLoop);
+
+    // Redraw on window resize
+    window.addEventListener('resize', () => {
+      const img = heroLoader.getNearestLoadedFrame(lastDrawnFrame >= 0 ? lastDrawnFrame : 0);
+      if (img) renderFrameToCanvas(canvas, ctx, img);
+    }, { passive: true });
   }
 
   // =========================================================================
@@ -454,11 +526,14 @@
   // After 70% progress, 4 callouts fade in one by one.
   // =========================================================================
   function initDismantleScrollytelling(dismantleLoader) {
-    const wrapper = document.getElementById('dismantle-wrapper');
+    const wrapper = document.getElementById('dismantle-wrapper') || document.getElementById('dismantle');
     const canvas = document.getElementById('dismantle-canvas');
     const progressLine = document.getElementById('dismantle-progress-line');
 
     if (!wrapper || !canvas) return;
+
+    // Force explicit section height from config
+    wrapper.style.height = `${CFG.dismantle.wrapperHeightVh || 350}vh`;
 
     const ctx = canvas.getContext('2d', { alpha: false });
     const frameCount = CFG.dismantle.frameCount;
@@ -501,6 +576,11 @@
       });
     }
 
+    // Initial frame 0 render immediately
+    dismantleLoader.loadFrame(0).then(img => {
+      if (img) renderFrameToCanvas(canvas, ctx, img);
+    });
+
     function dismantleRafLoop() {
       dismantleProgress = calculateProgress();
       targetFrame = Math.round(dismantleProgress * (frameCount - 1));
@@ -522,6 +602,11 @@
     }
 
     requestAnimationFrame(dismantleRafLoop);
+
+    window.addEventListener('resize', () => {
+      const img = dismantleLoader.getNearestLoadedFrame(lastDrawnFrame >= 0 ? lastDrawnFrame : 0);
+      if (img) renderFrameToCanvas(canvas, ctx, img);
+    }, { passive: true });
   }
 
   // =========================================================================
@@ -562,7 +647,7 @@
     // Hover trigger with 80ms debounce (Desktop)
     slides.forEach((slide, index) => {
       slide.addEventListener('mouseenter', () => {
-        if (window.innerWidth < 768) return; // Touch/tap handles mobile
+        if (window.innerWidth < 768) return;
         clearTimeout(hoverTimeout);
         hoverTimeout = setTimeout(() => {
           setActiveSlide(index);
@@ -575,12 +660,11 @@
 
       // Click / Tap support
       slide.addEventListener('click', (e) => {
-        // Prevent swatch or link clicks from toggling slide
         if (e.target.closest('.swatch-btn') || e.target.closest('.configure-link')) return;
         setActiveSlide(index);
       });
 
-      // Keyboard navigation: ArrowLeft/ArrowRight, Home/End
+      // Keyboard navigation
       slide.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
           e.preventDefault();
@@ -622,16 +706,17 @@
             observer.unobserve(lineupSection);
           }
         });
-      }, { threshold: 0.15 });
+      }, { threshold: 0.05 });
       observer.observe(lineupSection);
+    } else if (lineupSection) {
+      lineupSection.classList.add('lineup-revealed');
     }
   }
 
   // =========================================================================
-  // 10. PRELOADER & BACKGROUND QUEUE ORCHESTRATION
-  // 1. Load initial hero frames 1–40 -> Reveal page
-  // 2. Queue remaining hero frames (41–598) in background
-  // 3. Queue dismantle frames (1–200) in background
+  // 10. PRELOADER & BACKGROUND STREAMING ORCHESTRATION
+  // Load hero frames 1–40 concurrently -> reveal screen with bright pulse
+  // Stream remaining hero frames and dismantle frames in background queues
   // =========================================================================
   async function initPreloaderAndQueue() {
     const preloader = document.getElementById('preloader');
@@ -641,8 +726,13 @@
     const heroLoader = new SequenceLoader(CFG.hero, true);
     const dismantleLoader = new SequenceLoader(CFG.dismantle, false);
 
+    // Initialize scrollytelling loops immediately so canvas & HUD are active
+    initHeroScrollytelling(heroLoader);
+    initDismantleScrollytelling(dismantleLoader);
+
     const initialFramesTarget = CFG.preloader?.initialHeroFrames || 40;
-    let initialLoaded = 0;
+    let loadedCount = 0;
+    let isComplete = false;
 
     function updatePreloader(percent) {
       const clamped = Math.min(100, Math.max(0, Math.round(percent)));
@@ -650,78 +740,97 @@
       if (preloaderCounter) preloaderCounter.textContent = `${String(clamped).padStart(3, '0')}%`;
     }
 
-    // Step 1: Load hero frames 0 to initialFramesTarget in parallel chunks of 5
-    const initialIndices = Array.from({ length: initialFramesTarget }, (_, i) => i);
-    const chunkSize = 5;
+    function dismissPreloader() {
+      if (isComplete) return;
+      isComplete = true;
+      updatePreloader(100);
 
-    for (let i = 0; i < initialIndices.length; i += chunkSize) {
-      const chunk = initialIndices.slice(i, i + chunkSize);
-      await Promise.all(chunk.map(idx => heroLoader.loadFrame(idx)));
-      initialLoaded += chunk.length;
-      updatePreloader((initialLoaded / initialFramesTarget) * 100);
+      if (preloader) {
+        preloader.classList.add('boost');
+        setTimeout(() => {
+          preloader.classList.add('loaded');
+          // Trigger Chapter 1 animation reveal
+          const chap1 = document.getElementById('hero-chap-1');
+          if (chap1) chap1.classList.add('active');
+        }, 220);
+      }
     }
 
-    // Reveal page: Line turns brighter for a moment, then fade out screen
-    if (preloader) {
-      preloader.classList.add('boost');
-      setTimeout(() => {
-        preloader.classList.add('loaded');
-        // Initialize hero and dismantle scrolly loops
-        initHeroScrollytelling(heroLoader);
-        initDismantleScrollytelling(dismantleLoader);
-      }, 350);
+    // Safety timeout: Never leave preloader on screen longer than 1.8s
+    const maxWaitTimer = setTimeout(() => {
+      dismissPreloader();
+    }, 1800);
+
+    // Concurrently load the initial batch of hero frames
+    const initialTasks = [];
+    for (let i = 0; i < initialFramesTarget; i++) {
+      initialTasks.push(
+        heroLoader.loadFrame(i).then(() => {
+          loadedCount++;
+          updatePreloader((loadedCount / initialFramesTarget) * 100);
+        })
+      );
     }
 
-    // Step 2: Background queue for remaining hero frames (40 to 597)
-    async function backgroundQueue() {
-      // Prioritize key chapter checkpoints first (25%, 50%, 75%, 100%)
+    // When initial frames are loaded, reveal immediately
+    Promise.all(initialTasks).then(() => {
+      clearTimeout(maxWaitTimer);
+      dismissPreloader();
+    });
+
+    // Background streaming of remaining frames
+    async function backgroundStreaming() {
       const heroTotal = CFG.hero.frameCount;
-      const checkpoints = [
+      const dismantleTotal = CFG.dismantle.frameCount;
+
+      // Checkpoints first
+      const heroKeyframes = [
         Math.round(heroTotal * 0.25),
         Math.round(heroTotal * 0.50),
         Math.round(heroTotal * 0.75),
         heroTotal - 1
       ];
-      for (const cp of checkpoints) {
-        await heroLoader.loadFrame(cp);
+      for (const idx of heroKeyframes) {
+        await heroLoader.loadFrame(idx);
       }
 
-      // Also preload first and last dismantle frames immediately
       await dismantleLoader.loadFrame(0);
-      await dismantleLoader.loadFrame(CFG.dismantle.frameCount - 1);
+      await dismantleLoader.loadFrame(dismantleTotal - 1);
 
-      // Stream remaining hero frames sequentially in chunks
+      // Stream hero frames in batches of 4
       for (let i = initialFramesTarget; i < heroTotal; i += 4) {
         const batch = [i, i + 1, i + 2, i + 3].filter(idx => idx < heroTotal);
         await Promise.all(batch.map(idx => heroLoader.loadFrame(idx)));
-        // Yield to browser main thread
         await new Promise(r => setTimeout(r, 16));
       }
 
-      // Step 3: Stream dismantle frames sequentially
-      const dismantleTotal = CFG.dismantle.frameCount;
-      for (let i = 0; i < dismantleTotal; i += 4) {
+      // Stream dismantle frames in batches of 4
+      for (let i = 1; i < dismantleTotal - 1; i += 4) {
         const batch = [i, i + 1, i + 2, i + 3].filter(idx => idx < dismantleTotal);
         await Promise.all(batch.map(idx => dismantleLoader.loadFrame(idx)));
         await new Promise(r => setTimeout(r, 16));
       }
     }
 
-    // Start background streaming
-    backgroundQueue();
+    backgroundStreaming();
   }
 
   // =========================================================================
   // BOOTSTRAP APPLICATION
   // =========================================================================
-  window.addEventListener('DOMContentLoaded', () => {
+  function bootstrap() {
     initFilmGrain();
     initCustomCursor();
     initNavbar();
     initStatementScroller();
     initLineupAccordion();
     initPreloaderAndQueue();
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  } else {
+    bootstrap();
+  }
 
 })();
-
