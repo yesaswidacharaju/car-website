@@ -1,0 +1,1372 @@
+/* ==========================================================================
+   NOCTIS — BRAND DESIGN TOKENS & ARCHITECTURAL STYLESHEET
+   Strict Minimalism: Flat solid colors, 1px hairlines, pure photography & type.
+   No gradients, no blur/glassmorphism, no glows, no shadows, no rounded cards.
+   ========================================================================== */
+
+:root {
+  --asphalt: #07080A;
+  --graphite: #121418;
+  --fog: #8A8F98;
+  --bone: #EDEAE4;
+  --xenon: #CFE3FF;
+  --xenon-bright: #FFFFFF;
+  --taillight: #E1251B;
+  --hairline: rgba(237, 234, 228, 0.12);
+  --hairline-subtle: rgba(237, 234, 228, 0.06);
+
+  --font-display: 'Archivo', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-hud: 'JetBrains Mono', monospace;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 0.2s var(--ease);
+  --transition-medium: 0.5s var(--ease);
+  --transition-slow: 0.7s var(--ease);
+  --transition-reveal: 0.9s var(--ease);
+}
+
+/* ==========================================================================
+   RESET & FOUNDATIONS
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border-radius: 0 !important; /* Strict architectural lines */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  background-color: var(--asphalt);
+  color: var(--bone);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-x: clip; /* Never use overflow: hidden on ancestors of sticky stages */
+  scroll-behavior: auto; /* Managed programmatically */
+}
+
+body {
+  background-color: var(--asphalt);
+  color: var(--bone);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: clip;
+}
+
+/* Hide native cursor only for precise pointer devices */
+@media (pointer: fine) {
+  body:not(.reduced-motion) {
+    cursor: none;
+  }
+  body:not(.reduced-motion) a,
+  body:not(.reduced-motion) button,
+  body:not(.reduced-motion) [role="button"] {
+    cursor: none;
+  }
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+/* ==========================================================================
+   TYPOGRAPHY
+   ========================================================================== */
+
+.font-display {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-variation-settings: "wdth" 125;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--bone);
+}
+
+.font-hud {
+  font-family: var(--font-hud);
+  font-weight: 400;
+  font-size: 11px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--fog);
+}
+
+.font-body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: clamp(15px, 1.1vw, 17px);
+  line-height: 1.6;
+  max-width: 52ch;
+  color: var(--fog);
+}
+
+/* Headline Reveal Masks */
+.mask-line {
+  overflow: hidden;
+  display: block;
+  line-height: 1.05;
+}
+
+.mask-inner {
+  display: block;
+  transform: translateY(105%);
+  transition: transform var(--transition-reveal);
+  will-change: transform;
+}
+
+.revealed .mask-inner,
+.active .mask-inner {
+  transform: translateY(0%);
+}
+
+/* Stagger utilities */
+.stagger-1 .mask-inner { transition-delay: 0.00s; }
+.stagger-2 .mask-inner { transition-delay: 0.08s; }
+.stagger-3 .mask-inner { transition-delay: 0.16s; }
+.stagger-4 .mask-inner { transition-delay: 0.24s; }
+
+/* ==========================================================================
+   GLOBAL FILM GRAIN OVERLAY
+   Shifted randomly ~8 times per second, 3.5% opacity, pointer-events none
+   ========================================================================== */
+
+#grain-overlay {
+  position: fixed;
+  top: -50px;
+  left: -50px;
+  width: calc(100vw + 100px);
+  height: calc(100vh + 100px);
+  pointer-events: none;
+  z-index: 9990;
+  opacity: 0.035;
+}
+
+/* ==========================================================================
+   CUSTOM CURSOR ("The Headlight", Desktop Only)
+   6px solid xenon dot inside 28px ring with 1px xenon stroke.
+   Morphs over interactive targets into a 44x2px horizontal light bar with mono label.
+   ========================================================================== */
+
+#cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+  will-change: transform;
+}
+
+@media (pointer: fine) {
+  body:not(.reduced-motion) #cursor {
+    display: block;
+  }
+}
+
+.cursor-container {
+  position: relative;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  transition: transform 0.1s var(--ease);
+}
+
+/* Default Ring: 28px diameter, 1px xenon stroke */
+.cursor-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--xenon);
+  transition: width 0.22s var(--ease), height 0.22s var(--ease), opacity 0.22s var(--ease);
+}
+
+/* Default Dot: 6px solid xenon */
+.cursor-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  background-color: var(--xenon);
+  transition: width 0.22s var(--ease), height 0.22s var(--ease), background-color 0.12s ease;
+}
+
+/* Morph State: 44x2px horizontal light bar */
+#cursor.state-hover .cursor-ring {
+  width: 44px;
+  height: 2px;
+  border: none;
+  background-color: var(--xenon);
+}
+
+#cursor.state-hover .cursor-dot {
+  opacity: 0;
+}
+
+/* Click Boost (turns brighter for 120ms) */
+#cursor.cursor-active .cursor-ring,
+#cursor.cursor-active .cursor-dot {
+  background-color: var(--xenon-bright) !important;
+  border-color: var(--xenon-bright) !important;
+}
+
+/* Tiny Mono Cursor Label */
+.cursor-label {
+  position: absolute;
+  left: 32px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-hud);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--xenon);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+  transform: translateY(-50%) translateX(-4px);
+}
+
+#cursor.state-hover .cursor-label {
+  left: 30px;
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* ==========================================================================
+   PRELOADER
+   Black screen, NOCTIS wordmark, thin xenon line (000–100 mono counter)
+   ========================================================================== */
+
+#preloader {
+  position: fixed;
+  inset: 0;
+  background-color: var(--asphalt);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 0.8s var(--ease), visibility 0.8s var(--ease);
+}
+
+#preloader.loaded {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.preloader-brand {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-size: clamp(32px, 5vw, 64px);
+  font-weight: 300;
+  letter-spacing: 0.18em;
+  color: var(--bone);
+  margin-bottom: 32px;
+}
+
+.preloader-bar-wrap {
+  position: relative;
+  width: clamp(200px, 30vw, 360px);
+  height: 1px;
+  background-color: var(--hairline);
+  margin-bottom: 20px;
+  overflow: visible;
+}
+
+.preloader-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 100%;
+  width: 100%;
+  background-color: var(--xenon);
+  transform: translateX(-50%) scaleX(0);
+  transform-origin: center;
+  transition: transform 0.15s linear, background-color 0.2s ease;
+}
+
+#preloader.boost .preloader-bar-fill {
+  background-color: var(--xenon-bright);
+}
+
+.preloader-counter {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--fog);
+}
+
+/* ==========================================================================
+   NAVIGATION
+   Fixed, transparent, mix-blend-mode: difference.
+   Hides on scroll down, shows on scroll up.
+   ========================================================================== */
+
+#navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 72px;
+  padding: 0 clamp(24px, 4vw, 64px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 9000;
+  mix-blend-mode: difference;
+  transition: transform 0.4s var(--ease);
+}
+
+#navbar.nav-hidden {
+  transform: translateY(-100%);
+}
+
+.nav-wordmark {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  color: var(--bone);
+}
+
+.nav-links {
+  display: flex;
+  gap: clamp(20px, 3vw, 40px);
+  list-style: none;
+}
+
+.nav-link {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--bone);
+  position: relative;
+  padding: 4px 0;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background-color: var(--bone);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s var(--ease);
+}
+
+.nav-link:hover::after,
+.nav-link:focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* ==========================================================================
+   SCROLLYTELLING ARCHITECTURE (Pinned Sticky Stages)
+   Tall wrapper drives scroll; inner stage holds sticky canvas & HUD.
+   ========================================================================== */
+
+.scroll-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.sticky-stage {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--asphalt);
+  overflow: hidden;
+}
+
+.scrolly-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 1px Xenon Bottom Section Progress Bar */
+.section-progress-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background-color: var(--xenon);
+  transform: scaleX(0);
+  transform-origin: left;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   SECTION 1 — HERO
+   Chapters placed in empty sky, never over the car.
+   Left-edge HUD in mono: chapter 01/04, speed 000→118, distance 0.0→4.2
+   ========================================================================== */
+
+#hero-wrapper {
+  height: 600vh;
+}
+
+.hero-overlay-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  padding: clamp(24px, 4vw, 64px);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* Left-Edge HUD */
+.hero-hud {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  z-index: 20;
+}
+
+.hud-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hud-label {
+  font-family: var(--font-hud);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--fog);
+}
+
+.hud-value-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-tick {
+  width: 4px;
+  height: 4px;
+  background-color: var(--taillight);
+}
+
+.hud-value {
+  font-family: var(--font-hud);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hero Chapters Container (Sky Area) */
+.hero-chapters {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.hero-chapter {
+  position: absolute;
+  top: clamp(80px, 14vh, 160px);
+  left: clamp(20px, 4vw, 80px);
+  max-width: clamp(320px, 45vw, 680px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s var(--ease), visibility 0.6s var(--ease);
+  pointer-events: auto;
+}
+
+.hero-chapter.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.hero-chapter-title {
+  font-size: clamp(36px, 6vw, 92px);
+  line-height: 0.95;
+  margin-bottom: 16px;
+}
+
+.hero-chapter-sub {
+  font-family: var(--font-body);
+  font-size: clamp(16px, 1.2vw, 20px);
+  color: var(--fog);
+  line-height: 1.4;
+  margin-bottom: 24px;
+}
+
+/* Scroll Hint (Chapter 1) */
+.scroll-hint {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 32px;
+}
+
+.scroll-hint-line {
+  width: 36px;
+  height: 1px;
+  background-color: var(--xenon);
+  animation: pulse-line 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-line {
+  0%, 100% { opacity: 0.25; transform: scaleX(0.7); }
+  50% { opacity: 1; transform: scaleX(1); }
+}
+
+/* Chapter 4 Specs & Link */
+.hero-specs-row {
+  margin-bottom: 20px;
+}
+
+.hero-cta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-hud);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: var(--xenon);
+  border-bottom: 1px solid var(--xenon);
+  padding-bottom: 4px;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.hero-cta-link:hover {
+  color: var(--bone);
+  border-color: var(--bone);
+}
+
+/* Fade to black overlay for last 5% */
+.hero-blackout {
+  position: absolute;
+  inset: 0;
+  background-color: var(--asphalt);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ==========================================================================
+   SECTION 2 — STATEMENT (100vh, Not Pinned)
+   Centred one sentence revealing word by word with scroll
+   ========================================================================== */
+
+#statement-section {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: clamp(32px, 8vw, 120px) clamp(24px, 5vw, 80px);
+  background-color: var(--asphalt);
+  z-index: 2;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.statement-inner {
+  max-width: 1040px;
+  text-align: center;
+}
+
+.statement-label {
+  margin-bottom: clamp(24px, 4vw, 48px);
+}
+
+.statement-headline {
+  font-size: clamp(32px, 5.2vw, 76px);
+  line-height: 1.15;
+  color: var(--bone);
+}
+
+.statement-word {
+  display: inline-block;
+  opacity: 0.15;
+  transition: opacity 0.25s linear;
+  margin-right: 0.2em;
+  will-change: opacity;
+}
+
+/* ==========================================================================
+   SECTION 3 — DISMANTLE (Pinned, 350vh)
+   Car takes apart on scroll down, puts together on scroll up.
+   Four callouts after 70% with 1px hairlines and xenon dots.
+   ========================================================================== */
+
+#dismantle-wrapper {
+  height: 350vh;
+}
+
+.dismantle-header {
+  position: absolute;
+  top: clamp(80px, 12vh, 120px);
+  left: clamp(24px, 4vw, 64px);
+  z-index: 20;
+  pointer-events: none;
+}
+
+.dismantle-label {
+  margin-bottom: 12px;
+}
+
+.dismantle-title {
+  font-size: clamp(36px, 5.5vw, 72px);
+  line-height: 1;
+}
+
+.dismantle-callouts {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.dismantle-callout {
+  position: absolute;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+  pointer-events: auto;
+}
+
+.dismantle-callout.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.callout-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--xenon);
+  position: relative;
+  z-index: 2;
+}
+
+.callout-leader-line {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  height: 1px;
+  background-color: var(--xenon);
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+.callout-content {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.callout-code {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--xenon);
+}
+
+.callout-text {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--bone);
+  letter-spacing: 0.01em;
+}
+
+/* ==========================================================================
+   SECTION 4 — LINEUP (Hover Accordion, 100vh)
+   Five full-height vertical slides side by side on flat --asphalt.
+   One slide open by default (GT-E).
+   ========================================================================== */
+
+#lineup-section {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--asphalt);
+  padding-top: clamp(40px, 6vh, 72px);
+  overflow: hidden;
+  z-index: 2;
+}
+
+.lineup-intro {
+  padding: 0 clamp(24px, 4vw, 64px) 24px clamp(24px, 4vw, 64px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lineup-title {
+  font-size: clamp(28px, 3.8vw, 56px);
+  line-height: 1.05;
+}
+
+.accordion-container {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: calc(100vh - 180px);
+  min-height: 520px;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  position: relative;
+}
+
+/* Accordion Slide Item */
+.accordion-slide {
+  position: relative;
+  flex: 1 1 12vw;
+  min-width: 0;
+  height: 100%;
+  border-right: 1px solid var(--hairline);
+  background-color: var(--asphalt);
+  display: flex;
+  flex-direction: column;
+  transition: flex-grow var(--transition-slow);
+  overflow: hidden;
+  outline: none;
+}
+
+.accordion-slide:last-child {
+  border-right: none;
+}
+
+.accordion-slide.active {
+  flex-grow: 5; /* Expands to remaining width (~52vw) */
+}
+
+/* Section entrance reveal */
+.lineup-revealed .accordion-slide {
+  animation: slide-rise 0.8s var(--ease) forwards;
+}
+
+@keyframes slide-rise {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lineup-revealed .accordion-slide:nth-child(1) { animation-delay: 0.00s; }
+.lineup-revealed .accordion-slide:nth-child(2) { animation-delay: 0.08s; }
+.lineup-revealed .accordion-slide:nth-child(3) { animation-delay: 0.16s; }
+.lineup-revealed .accordion-slide:nth-child(4) { animation-delay: 0.24s; }
+.lineup-revealed .accordion-slide:nth-child(5) { animation-delay: 0.32s; }
+
+/* Closed Slide Layout */
+.slide-closed-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 16px;
+  opacity: 1;
+  transition: opacity 0.35s var(--ease);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.accordion-slide.active .slide-closed-view {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.slide-number {
+  font-family: var(--font-hud);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--fog);
+}
+
+.slide-vertical-name {
+  font-family: var(--font-hud);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  color: var(--bone);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  margin-top: auto;
+  margin-bottom: 24px;
+}
+
+/* Background image in closed slide: tight crop, 25% brightness & grayscale */
+.slide-car-preview-closed {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 85% center; /* Positioned on front light bar */
+  filter: grayscale(100%) brightness(25%);
+  transition: opacity 0.4s var(--ease);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.accordion-slide.active .slide-car-preview-closed {
+  opacity: 0;
+}
+
+/* Open Slide Layout */
+.slide-open-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(24px, 3vw, 48px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s var(--ease) 0.1s;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.accordion-slide.active .slide-open-view {
+  opacity: 1;
+  visibility: visible;
+}
+
+.open-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.open-model-name {
+  font-size: clamp(36px, 4vw, 68px);
+  line-height: 1;
+}
+
+.open-model-tagline {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--fog);
+  margin-top: 8px;
+}
+
+/* Open Car Image: sits on shared floor line at 72% height, slides in 6% */
+.slide-car-stage {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.open-car-img {
+  position: absolute;
+  bottom: 28%; /* Wheels sitting at 72% of slide height */
+  left: 6%;
+  width: 88%;
+  max-width: 1000px;
+  height: auto;
+  opacity: 0;
+  transform: translateX(-6%);
+  transition: opacity 0.6s var(--ease) 0.1s, transform 0.7s var(--ease);
+}
+
+.accordion-slide.active .open-car-img {
+  opacity: 1;
+  transform: translateX(0%);
+}
+
+/* Shared floor line across open slide */
+.slide-floor-line {
+  position: absolute;
+  top: 72%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background-color: var(--hairline-subtle);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Open Footer: Specs, Swatches, Configure Link */
+.open-footer {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline-subtle);
+  z-index: 15;
+}
+
+.spec-columns {
+  display: flex;
+  gap: clamp(24px, 3vw, 48px);
+}
+
+.spec-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spec-col-label {
+  font-family: var(--font-hud);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--fog);
+}
+
+.spec-col-val {
+  font-family: var(--font-hud);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+}
+
+.swatches-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch-btn {
+  width: 12px;
+  height: 12px;
+  border: 1px solid transparent;
+  padding: 0;
+  background-color: var(--swatch-color, #121418);
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.swatch-btn.active {
+  border: 1px solid var(--bone);
+  transform: scale(1.15);
+}
+
+.configure-link {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--xenon);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--xenon);
+  padding-bottom: 2px;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.configure-link:hover {
+  color: var(--bone);
+  border-color: var(--bone);
+}
+
+/* ==========================================================================
+   SECTION 5 — RESERVE (100vh)
+   Black, centred: "Drive the night.", body text, xenon outline button
+   On hover: outline fills solid xenon, label turns asphalt, red 2px tick
+   ========================================================================== */
+
+#reserve-section {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: clamp(32px, 8vw, 120px) clamp(24px, 5vw, 80px);
+  background-color: var(--asphalt);
+  text-align: center;
+  z-index: 2;
+  border-top: 1px solid var(--hairline);
+}
+
+.reserve-content {
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.reserve-title {
+  font-size: clamp(40px, 6vw, 96px);
+  line-height: 0.95;
+}
+
+.reserve-sub {
+  font-size: clamp(15px, 1.1vw, 18px);
+  color: var(--fog);
+  max-width: 44ch;
+}
+
+.reserve-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 36px;
+  margin-top: 16px;
+  background-color: transparent;
+  border: 1px solid var(--xenon);
+  color: var(--xenon);
+  font-family: var(--font-hud);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  font-weight: 500;
+  transition: background-color 0.25s var(--ease), color 0.25s var(--ease), border-color 0.25s var(--ease);
+}
+
+.reserve-tick {
+  position: absolute;
+  left: 16px;
+  width: 2px;
+  height: 14px;
+  background-color: var(--taillight);
+  opacity: 0;
+  transform: scaleY(0);
+  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+}
+
+.reserve-button:hover,
+.reserve-button:focus-visible {
+  background-color: var(--xenon);
+  color: var(--asphalt);
+  border-color: var(--xenon);
+}
+
+.reserve-button:hover .reserve-tick,
+.reserve-button:focus-visible .reserve-tick {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+/* ==========================================================================
+   FOOTER
+   Hairline top border, wordmark, 3 columns of small mono links, copyright
+   ========================================================================== */
+
+#footer {
+  position: relative;
+  background-color: var(--asphalt);
+  border-top: 1px solid var(--hairline);
+  padding: clamp(48px, 6vw, 96px) clamp(24px, 4vw, 64px) clamp(32px, 4vw, 48px);
+  z-index: 2;
+}
+
+.footer-top {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 48px;
+  margin-bottom: 64px;
+}
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-wordmark {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-size: 24px;
+  letter-spacing: 0.12em;
+}
+
+.footer-tagline {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--fog);
+}
+
+.footer-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  gap: clamp(24px, 4vw, 64px);
+}
+
+.footer-col-title {
+  font-family: var(--font-hud);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--fog);
+  margin-bottom: 16px;
+}
+
+.footer-col-links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer-link {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--bone);
+  transition: color var(--transition-fast);
+}
+
+.footer-link:hover,
+.footer-link:focus-visible {
+  color: var(--xenon);
+}
+
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 32px;
+  border-top: 1px solid var(--hairline-subtle);
+  font-family: var(--font-hud);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--fog);
+}
+
+/* ==========================================================================
+   ACCESSIBILITY & REDUCED MOTION
+   ========================================================================== */
+
+:focus-visible {
+  outline: 1px solid var(--xenon);
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    cursor: auto !important;
+  }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .scroll-wrapper {
+    height: auto !important;
+  }
+
+  .sticky-stage {
+    position: relative !important;
+    height: auto !important;
+    min-height: 100vh;
+  }
+
+  .scrolly-canvas {
+    display: none !important;
+  }
+
+  .reduced-motion-frame {
+    display: block !important;
+    width: 100%;
+    height: 100vh;
+    object-fit: contain;
+  }
+
+  .hero-chapter {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    padding: 40px 24px;
+  }
+
+  .mask-inner {
+    transform: none !important;
+  }
+
+  .statement-word {
+    opacity: 1 !important;
+  }
+
+  .dismantle-callout {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .accordion-slide {
+    flex: 1 1 auto !important;
+  }
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN (Mobile < 768px)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  #navbar {
+    height: 60px;
+    padding: 0 20px;
+  }
+
+  .hero-overlay-grid {
+    padding: 20px;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 16px;
+  }
+
+  .hero-hud {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+    order: 2;
+    margin-top: auto;
+  }
+
+  .hero-chapters {
+    order: 1;
+  }
+
+  .hero-chapter {
+    top: 80px;
+    left: 0;
+    max-width: 100%;
+  }
+
+  /* Accordion stacks vertically on mobile */
+  .accordion-container {
+    flex-direction: column;
+    height: auto;
+    min-height: auto;
+  }
+
+  .accordion-slide {
+    flex: 0 0 72px;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--hairline);
+    min-height: 72px;
+    height: auto;
+  }
+
+  .accordion-slide.active {
+    flex: 0 0 auto;
+    min-height: 560px;
+  }
+
+  .slide-closed-view {
+    flex-direction: row;
+    align-items: center;
+    padding: 0 20px;
+    height: 72px;
+  }
+
+  .slide-vertical-name {
+    writing-mode: horizontal-tb;
+    transform: none;
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .slide-car-preview-closed {
+    object-position: 80% center;
+  }
+
+  .slide-open-view {
+    position: relative;
+    padding: 24px 20px;
+    min-height: 560px;
+  }
+
+  .open-car-img {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    width: 100%;
+    margin: 32px 0;
+    transform: none !important;
+  }
+
+  .slide-floor-line {
+    display: none;
+  }
+
+  .open-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .spec-columns {
+    width: 100%;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .footer-top {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+
+  .footer-columns {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .footer-bottom {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+}
+
